@@ -11,7 +11,7 @@ APP=application
 # ==============================
 .PHONY: all start stop delete clean deploy forward prometheus argocd nginx kill-forwards
 
-all: start prometheus argocd forward
+all: start prometheus argocd nginx forward
 	@echo "Full cluster environment is up and running!"
 
 # ==============================
