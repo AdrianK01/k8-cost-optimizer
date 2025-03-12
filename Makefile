@@ -5,11 +5,11 @@
 # Variables
 PROM_NS=monitoring
 ARGO_NS=argocd
-
+APP=application
 # ==============================
 #   High-Level Commands
 # ==============================
-.PHONY: all start stop delete clean deploy forward prometheus argocd
+.PHONY: all start stop delete clean deploy forward prometheus argocd nginx kill-forwards
 
 all: start prometheus argocd forward
 	@echo "Full cluster environment is up and running!"
@@ -19,7 +19,7 @@ all: start prometheus argocd forward
 # ==============================
 start:
 	@echo "Starting Minikube..."
-	minikube start --driver=docker --cpus=4
+	minikube start --cpus=4
 	@echo "Minikube started."
 
 stop:
@@ -51,6 +51,12 @@ argocd:
 	kubectl rollout status deployment/argocd-server -n $(ARGO_NS)
 	@echo "ArgoCD installed."
 
+nginx:
+	@echo "Deploying Nginx..."
+	kubectl create namespace $(APP) || true
+	kubectl create deployment nginx --image=nginx --namespace=$(APP) || true
+	kubectl expose deployment nginx --port=80 --target-port=80 --type=NodePort --namespace=$(NGINX_NS) || true
+	@echo "Deployed Nginx."
 # ==============================
 #   Port Forwarding
 # ==============================
@@ -59,8 +65,15 @@ forward:
 	-kubectl port-forward svc/prometheus-operated -n $(PROM_NS) 9090:9090 &
 	-kubectl port-forward svc/prometheus-grafana -n $(PROM_NS) 3000:80 &
 	-kubectl port-forward svc/argocd-server -n $(ARGO_NS) 8080:443 &
+	-kubectl port-forward deployment/nginx -n $(APP) 9080:80 &
 	@echo "Prometheus available at: http://localhost:9090"
 	@echo "Grafana available at:    http://localhost:3000"
 	@echo "ArgoCD available at:     https://localhost:8080"
+	@echo "Nginx available at:     http://localhost:9080"
 	@echo "Port forwarding set. Keeping session alive..."
 	@wait
+
+kill-forwards:
+	@echo "Killing forwarding processes"
+	@pkill -f "kubectl port-forward" || true
+	@echo "Killed port forwarding"
